@@ -10,18 +10,22 @@ Vector v1, v2, v3;
 TimingTask spinningTask;
 boolean yDirection;
 // scaling is a power of 2
-int n = 2;
+int n = 5;
 int maxN = 9;
 // Grid antialiasing
-int antialiasing_subdiv = 4;
+int antialiasing_subdiv = 8;
 
 // 2. Hints
 boolean triangleHint = true;
-boolean gridHint = true;
-boolean debug = true;
+boolean gridHint = false;
+boolean debug = false;
+boolean antialiasingHint = false;
 
 // 3. Use FX2D, JAVA2D, P2D or P3D
 String renderer = P3D;
+
+float inv_antialiasing_subdiv = (float)1/antialiasing_subdiv;
+int pow_antialiasing_subdiv = antialiasing_subdiv*antialiasing_subdiv;
 
 void setup() {
   //use 2^n to change the dimensions
@@ -75,7 +79,41 @@ float orientacion(Vector a, Vector b, Vector c) {
   return ((b.x() - a.x()) *  (c.y() - a.y())) - ((b.y() - a.y()) *  (c.x() - a.x()));
 }
 
+Vector antialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
+  Vector PromedioColor = new Vector(0, 0, 0);
+  Vector P = new Vector(0, 0);
+  for (float i = 0; i < 1; i += inv_antialiasing_subdiv){
+    for (float j = 0; j < 1; j += inv_antialiasing_subdiv){
+      P.setX(x + i + inv_antialiasing_subdiv/2);
+      P.setY(y + i + inv_antialiasing_subdiv/2);
+      float W1 = orientacion(V1, V2, P);
+      float W2 = orientacion(V2, V3, P);
+      float W3 = orientacion(V3, V1, P);
+      if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
+        float awgP = 255/(W1 + W2 + W3)/pow_antialiasing_subdiv;
+        PromedioColor.setX(PromedioColor.x() + W1*awgP);
+        PromedioColor.setY(PromedioColor.y() + W2*awgP);
+        PromedioColor.setZ(PromedioColor.z() + W3*awgP);
+      }
+    }
+  }
+  return PromedioColor;
+}
 
+Vector noAntialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
+  Vector PromedioColor = new Vector(0, 0, 0);
+  Vector P = new Vector(x, y);
+  float W1 = orientacion(V1, V2, P);
+  float W2 = orientacion(V2, V3, P);
+  float W3 = orientacion(V3, V1, P);
+  if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
+    float awgP = 255/(W1 + W2 + W3);
+    PromedioColor.setX(PromedioColor.x() + W1*awgP);
+    PromedioColor.setY(PromedioColor.y() + W2*awgP);
+    PromedioColor.setZ(PromedioColor.z() + W3*awgP);
+  }
+  return PromedioColor;
+}
 
 // Implement this function to rasterize the triangle.
 // Coordinates are given in the frame system which has a dimension of 2^n
@@ -105,30 +143,15 @@ void triangleRaster() {
     V2 = frame.coordinatesOf(v1);
   }
 
-  float inv_antialiasing_subdiv = (float)1/antialiasing_subdiv;
-  int pow_antialiasing_subdiv = antialiasing_subdiv*antialiasing_subdiv;
-  Vector P = new Vector(0, 0);
-  Vector PromedioColor = new Vector(0, 0, 0);
-  for (float x = min.x(); x <= max.x(); x++)
+  
+  Vector PromedioColor;
+  for (float x = min.x(); x <= max.x(); x++){
     for (float y = min.y(); y <= max.y(); y++) {
-      PromedioColor.reset();
-      for (float i = 0; i < 1; i += inv_antialiasing_subdiv)
-        for (float j = 0; j < 1; j += inv_antialiasing_subdiv) {
-          P.setX(x + i + inv_antialiasing_subdiv/2);
-          P.setY(y + i + inv_antialiasing_subdiv/2);
-          float W1 = orientacion(V1, V2, P);
-          float W2 = orientacion(V2, V3, P);
-          float W3 = orientacion(V3, V1, P);
-          if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
-            float awgP = 255/(W1 + W2 + W3)/pow_antialiasing_subdiv;
-            PromedioColor.setX(PromedioColor.x() + W1*awgP);
-            PromedioColor.setY(PromedioColor.y() + W2*awgP);
-            PromedioColor.setZ(PromedioColor.z() + W3*awgP);
-          }
-        }
+      PromedioColor = antialiasingHint ? antialiasing(V1, V2, V3, x, y) : noAntialiasing(V1, V2, V3, x, y);
       fill(round(PromedioColor.x()), round(PromedioColor.y()), round(PromedioColor.z()), 200);
       rect(x, y, 1, 1);
     }
+  }
 }
 
 void randomizeTriangle() {
@@ -184,4 +207,7 @@ void keyPressed() {
       spinningTask.run(20);
   if (key == 'y')
     yDirection = !yDirection;
+    
+  if (key == 'a')
+    antialiasingHint = !antialiasingHint;
 }
