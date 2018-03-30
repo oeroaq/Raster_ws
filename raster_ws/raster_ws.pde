@@ -10,7 +10,10 @@ Vector v1, v2, v3;
 TimingTask spinningTask;
 boolean yDirection;
 // scaling is a power of 2
-int n = 4;
+int n = 2;
+int maxN = 9;
+// Grid antialiasing
+int antialiasing_subdiv = 4;
 
 // 2. Hints
 boolean triangleHint = true;
@@ -22,7 +25,7 @@ String renderer = P3D;
 
 void setup() {
   //use 2^n to change the dimensions
-  size(1024, 1024, renderer);
+  size(700, 700, renderer);
   scene = new Scene(this);
   if (scene.is3D())
     scene.setType(Scene.Type.ORTHOGRAPHIC);
@@ -68,17 +71,64 @@ void draw() {
   popMatrix();
 }
 
+float orientacion(Vector a, Vector b, Vector c) {
+  return ((b.x() - a.x()) *  (c.y() - a.y())) - ((b.y() - a.y()) *  (c.x() - a.x()));
+}
+
+
+
 // Implement this function to rasterize the triangle.
 // Coordinates are given in the frame system which has a dimension of 2^n
 void triangleRaster() {
+  Vector V1 = frame.coordinatesOf(v1);
+  Vector V2 = frame.coordinatesOf(v2);
+  Vector V3 = frame.coordinatesOf(v3);
   // frame.coordinatesOf converts from world to frame
   // here we convert v1 to illustrate the idea
   if (debug) {
     pushStyle();
-    stroke(255, 255, 0, 125);
-    point(round(frame.coordinatesOf(v1).x()), round(frame.coordinatesOf(v1).y()));
+    stroke(0,255,0,125);
+    point(round(V1.x()), round(V1.y()));
+    stroke(0,0,255,125);
+    point(round(V2.x()), round(V2.y()));
+    stroke(255,0,0,125);
+    point(round(V3.x()), round(V3.y()));
     popStyle();
   }
+  noStroke();
+  Vector max = new Vector(round(max(V1.x(), V2.x(), V3.x())), round(max(V1.y(), V2.y(), V3.y())));
+  Vector min = new Vector(round(min(V1.x(), V2.x(), V3.x())), round(min(V1.y(), V2.y(), V3.y())));
+  
+  if (orientacion(V1, V2, V3)<0)
+  {
+    V1 = frame.coordinatesOf(v2);
+    V2 = frame.coordinatesOf(v1);
+  }
+
+  float inv_antialiasing_subdiv = (float)1/antialiasing_subdiv;
+  int pow_antialiasing_subdiv = antialiasing_subdiv*antialiasing_subdiv;
+  Vector P = new Vector(0, 0);
+  Vector PromedioColor = new Vector(0, 0, 0);
+  for (float x = min.x(); x <= max.x(); x++)
+    for (float y = min.y(); y <= max.y(); y++) {
+      PromedioColor.reset();
+      for (float i = 0; i < 1; i += inv_antialiasing_subdiv)
+        for (float j = 0; j < 1; j += inv_antialiasing_subdiv) {
+          P.setX(x + i + inv_antialiasing_subdiv/2);
+          P.setY(y + i + inv_antialiasing_subdiv/2);
+          float W1 = orientacion(V1, V2, P);
+          float W2 = orientacion(V2, V3, P);
+          float W3 = orientacion(V3, V1, P);
+          if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
+            float awgP = 255/(W1 + W2 + W3)/pow_antialiasing_subdiv;
+            PromedioColor.setX(PromedioColor.x() + W1*awgP);
+            PromedioColor.setY(PromedioColor.y() + W2*awgP);
+            PromedioColor.setZ(PromedioColor.z() + W3*awgP);
+          }
+        }
+      fill(round(PromedioColor.x()), round(PromedioColor.y()), round(PromedioColor.z()), 200);
+      rect(x, y, 1, 1);
+    }
 }
 
 void randomizeTriangle() {
@@ -118,11 +168,11 @@ void keyPressed() {
   if (key == 'd')
     debug = !debug;
   if (key == '+') {
-    n = n < 7 ? n+1 : 2;
+    n = n < maxN ? n+1 : 2;
     frame.setScaling(width/pow( 2, n));
   }
   if (key == '-') {
-    n = n >2 ? n-1 : 7;
+    n = n >2 ? n-1 : maxN;
     frame.setScaling(width/pow( 2, n));
   }
   if (key == 'r')
