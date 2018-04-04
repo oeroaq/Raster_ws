@@ -11,9 +11,9 @@ TimingTask spinningTask;
 boolean yDirection;
 // scaling is a power of 2
 int n = 5;
-int maxN = 9;
+int maxN = 10;
 // Grid antialiasing
-int antialiasing_subdiv = 8;
+int antialiasing_subdiv = 4;
 
 // 2. Hints
 boolean triangleHint = true;
@@ -61,7 +61,7 @@ void setup() {
 }
 
 void draw() {
-  background(0);
+  background(255);
   stroke(0, 255, 0);
   if (gridHint)
     scene.drawGrid(scene.radius(), (int)pow( 2, n));
@@ -79,9 +79,10 @@ float orientacion(Vector a, Vector b, Vector c) {
   return ((b.x() - a.x()) *  (c.y() - a.y())) - ((b.y() - a.y()) *  (c.x() - a.x()));
 }
 
-Vector antialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
-  Vector PromedioColor = new Vector(0, 0, 0);
+void antialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
+  Vector PromedioColor = new Vector(255, 255, 255);
   Vector P = new Vector(0, 0);
+  float alpha = 255;
   for (float i = 0; i < 1; i += inv_antialiasing_subdiv){
     for (float j = 0; j < 1; j += inv_antialiasing_subdiv){
       P.setX(x + i + inv_antialiasing_subdiv/2);
@@ -89,30 +90,39 @@ Vector antialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
       float W1 = orientacion(V1, V2, P);
       float W2 = orientacion(V2, V3, P);
       float W3 = orientacion(V3, V1, P);
+      float awgP = 255/((W1 + W2 + W3)*pow_antialiasing_subdiv);
       if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
-        float awgP = 255/((W1 + W2 + W3)*pow_antialiasing_subdiv);
-        PromedioColor.setX(PromedioColor.x() + W1*awgP);
-        PromedioColor.setY(PromedioColor.y() + W2*awgP);
-        PromedioColor.setZ(PromedioColor.z() + W3*awgP);
+        PromedioColor.setX(PromedioColor.x() - W1*awgP);
+        PromedioColor.setY(PromedioColor.y() - W2*awgP);
+        PromedioColor.setZ(PromedioColor.z() - W3*awgP);
       }
+      else{
+        alpha -= awgP;
+      }
+      if(PromedioColor.matches(new Vector(255, 255, 255)))
+        noFill();
+      else
+        fill(round(PromedioColor.x()), round(PromedioColor.y()), round(PromedioColor.z()), alpha);
     }
   }
-  return PromedioColor;
+  
 }
 
-Vector noAntialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
-  Vector PromedioColor = new Vector(0, 0, 0);
+void noAntialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
+  Vector PromedioColor = new Vector(255, 255, 255);
   Vector P = new Vector(x, y);
   float W1 = orientacion(V1, V2, P);
   float W2 = orientacion(V2, V3, P);
   float W3 = orientacion(V3, V1, P);
+  float awgP = 255/(W1 + W2 + W3);
   if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
-    float awgP = 255/(W1 + W2 + W3);
-    PromedioColor.setX(PromedioColor.x() + W1*awgP);
-    PromedioColor.setY(PromedioColor.y() + W2*awgP);
-    PromedioColor.setZ(PromedioColor.z() + W3*awgP);
+    PromedioColor.setX(PromedioColor.x() - W1*awgP);
+    PromedioColor.setY(PromedioColor.y() - W2*awgP);
+    PromedioColor.setZ(PromedioColor.z() - W3*awgP);
+    fill(round(PromedioColor.x()), round(PromedioColor.y()), round(PromedioColor.z()));
   }
-  return PromedioColor;
+  else
+    noFill();
 }
 
 // Implement this function to rasterize the triangle.
@@ -123,16 +133,7 @@ void triangleRaster() {
   Vector V3 = frame.coordinatesOf(v3);
   // frame.coordinatesOf converts from world to frame
   // here we convert v1 to illustrate the idea
-  if (debug) {
-    pushStyle();
-    stroke(0,255,0,125);
-    point(round(V1.x()), round(V1.y()));
-    stroke(0,0,255,125);
-    point(round(V2.x()), round(V2.y()));
-    stroke(255,0,0,125);
-    point(round(V3.x()), round(V3.y()));
-    popStyle();
-  }
+  
   noStroke();
   Vector max = new Vector(round(max(V1.x(), V2.x(), V3.x())), round(max(V1.y(), V2.y(), V3.y())));
   Vector min = new Vector(round(min(V1.x(), V2.x(), V3.x())), round(min(V1.y(), V2.y(), V3.y())));
@@ -142,13 +143,23 @@ void triangleRaster() {
     V1 = frame.coordinatesOf(v2);
     V2 = frame.coordinatesOf(v1);
   }
-
-  
-  Vector PromedioColor;
+  if (debug) {
+    pushStyle();
+    stroke(255,0,255,125);
+    point(round(V1.x()), round(V1.y()));
+    stroke(255,0,255,125);
+    stroke(255,255,0,125);
+    point(round(V2.x()), round(V2.y()));
+    stroke(0,255,255,125);
+    point(round(V3.x()), round(V3.y()));
+    popStyle();
+  }
   for (float x = min.x(); x <= max.x(); x++){
     for (float y = min.y(); y <= max.y(); y++) {
-      PromedioColor = antialiasingHint ? antialiasing(V1, V2, V3, x, y) : noAntialiasing(V1, V2, V3, x, y);
-      fill(round(PromedioColor.x()), round(PromedioColor.y()), round(PromedioColor.z()), 200);
+      if(antialiasingHint)
+        antialiasing(V1, V2, V3, x, y);
+      else
+        noAntialiasing(V1, V2, V3, x, y);
       rect(x, y, 1, 1);
     }
   }
