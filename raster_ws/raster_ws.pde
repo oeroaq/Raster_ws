@@ -90,7 +90,7 @@ Vector antialiasing(Vector V1, Vector V2, Vector V3, float x, float y){
       float W2 = orientacion(V2, V3, P);
       float W3 = orientacion(V3, V1, P);
       if (W1 >= 0 && W2 >= 0 && W3 >= 0) {
-        float awgP = 255/(W1 + W2 + W3)/pow_antialiasing_subdiv;
+        float awgP = 255/((W1 + W2 + W3)*pow_antialiasing_subdiv);
         PromedioColor.setX(PromedioColor.x() + W1*awgP);
         PromedioColor.setY(PromedioColor.y() + W2*awgP);
         PromedioColor.setZ(PromedioColor.z() + W3*awgP);

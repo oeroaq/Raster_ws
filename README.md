@@ -66,7 +66,8 @@ Interpolación: cada nodo del triangulo tiene un color inicial. Los puntos dentr
 - Dificultades:
 
     - La librería [frames](https://github.com/VisualComputing/framesjs/releases) aunque intuitiva no cuenta con asignar escalares a un vector de clase ```Vector```  de 2 dimensiones, solo de 3 y un vector completo.
- - Se intenta realizar Shading dependiendo de si es raster o no de manera unificada en una sola función pues el código fuente de las funciones ```antialiasing``` y ```noAntialiasig``` se repite pero no se puede implementar.
+    - Se intenta realizar Shading dependiendo de si es raster o no de manera unificada en una sola función pues el código fuente de las funciones ```antialiasing``` y ```noAntialiasig``` se repite pero no se puede implementar.
+    - En el momento de hacer antialiasin el color tiende a blanco por ende este debe ser dividido por la cantidad de la malla de calculo para poder conservar la proporcion del color y que este no se vea afectado por las 2^n iteraciones del antialiasing y solo se tome su proporcionalidad.
 
 ## Entrega
 
